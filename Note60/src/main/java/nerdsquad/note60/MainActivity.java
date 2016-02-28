@@ -29,6 +29,7 @@ import android.os.Bundle;
 //import android.os.Vibrator;
 import android.util.Log;
 
+import java.util.LinkedList;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -80,7 +81,7 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
 
   private float floorDepth = 20f;
 
-  private Note[] notes;
+  private LinkedList<Note> notes;
   //private Vibrator vibrator;
   //private CardboardOverlayView overlayView;
 
@@ -142,13 +143,13 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
     cardboardView.setRenderer(this);
     setCardboardView(cardboardView);
 
-    notes = new Note[5];
+    notes = new LinkedList<Note>();
     camera = new float[16];
     view = new float[16];
     modelViewProjection = new float[16];
     modelView = new float[16];
     modelFloor = new float[16];
-    headRotation = new float[4];
+    headRotation = new float[3];
     headView = new float[16];
     //vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
@@ -245,11 +246,12 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
     Matrix.setIdentityM(modelFloor, 0);
     Matrix.translateM(modelFloor, 0, 0, -floorDepth, 0); // Floor appears below user.
 
-    notes[0] = new Note("", noteProgram, -1.0f, 2.1f, -3.5f);
-    notes[1] = new Note("", noteProgram, 3.5f, 0.0f, 1.0f);
-    notes[2] = new Note("", noteProgram, -3.5f, 0.0f, 1.0f);
-    notes[3] = new Note("", noteProgram, 0.0f, 0.0f, -3.5f);
-    notes[4] = new Note("", noteProgram, 0.0f, 0.0f, 3.5f);
+    float R = -3.5f;
+    for (int i = 0; i < 5; i++) {
+      float x = (float) Math.sin((float)i*2.0f*Math.PI / 5.0f) * R;
+      float z = (float) Math.cos((float)i*2.0f*Math.PI / 5.0f) * R;
+      notes.add(new Note("", noteProgram, x, 0.0f, z));
+    }
 
     checkGLError("onSurfaceCreated");
   }
@@ -290,7 +292,7 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
     headTransform.getHeadView(headView, 0);
 
     // Update the 3d audio engine with the most recent head rotation.
-    headTransform.getQuaternion(headRotation, 0);
+    headTransform.getEulerAngles(headRotation, 0);
 
     checkGLError("onReadyToDraw");
   }
@@ -304,8 +306,8 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
   public void onDrawEye(Eye eye) {
     GLES20.glEnable(GLES20.GL_DEPTH_TEST);
     GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
-    //GLES20.glEnable(GLES20.GL_CULL_FACE);
-    //GLES20.glCullFace(GLES20.GL_BACK);
+    GLES20.glEnable(GLES20.GL_CULL_FACE);
+    GLES20.glCullFace(GLES20.GL_BACK);
 
     checkGLError("colorParam");
 
@@ -317,8 +319,8 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
 
     float[] perspective = eye.getPerspective(Z_NEAR, Z_FAR);
 
-    for (int i = 0; i < notes.length; i++) {
-      notes[i].drawNote(view, perspective, lightPosInEyeSpace);
+    for (Note o : notes) {
+      o.drawNote(view, perspective, lightPosInEyeSpace);
     }
 
     // Set modelView for the floor, so we draw floor in the correct location
