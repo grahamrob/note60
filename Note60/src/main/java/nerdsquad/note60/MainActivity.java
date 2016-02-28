@@ -29,7 +29,7 @@ import android.os.Bundle;
 //import android.os.Vibrator;
 import android.util.Log;
 
-import java.util.LinkedList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -77,13 +77,14 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
   private float[] modelView;
   private float[] modelFloor;
 
-  private float[] headRotation;
+  private float[] headForward;
 
   private float floorDepth = 20f;
 
-  private LinkedList<Note> notes;
+  private ConcurrentLinkedQueue<Note> notes;
+  private ConcurrentLinkedQueue<float[]> newNotes;
   //private Vibrator vibrator;
-  //private CardboardOverlayView overlayView;
+  private CardboardOverlayView overlayView;
 
   /**
    * Converts a raw text file, saved as a resource, into an OpenGL ES shader.
@@ -143,17 +144,18 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
     cardboardView.setRenderer(this);
     setCardboardView(cardboardView);
 
-    notes = new LinkedList<Note>();
+    notes = new ConcurrentLinkedQueue<Note>();
+    newNotes = new ConcurrentLinkedQueue<float[]>();
     camera = new float[16];
     view = new float[16];
     modelViewProjection = new float[16];
     modelView = new float[16];
     modelFloor = new float[16];
-    headRotation = new float[3];
+    headForward = new float[3];
     headView = new float[16];
     //vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
-    //overlayView = (CardboardOverlayView) findViewById(R.id.overlay);
+    overlayView = (CardboardOverlayView) findViewById(R.id.overlay);
     //overlayView.show3DToast("Pull the magnet when you find an object.");
   }
 
@@ -246,12 +248,13 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
     Matrix.setIdentityM(modelFloor, 0);
     Matrix.translateM(modelFloor, 0, 0, -floorDepth, 0); // Floor appears below user.
 
+    /*
     float R = -3.5f;
     for (int i = 0; i < 5; i++) {
       float x = (float) Math.sin((float)i*2.0f*Math.PI / 5.0f) * R;
-      float z = (float) Math.cos((float)i*2.0f*Math.PI / 5.0f) * R;
+      float z = (float) Math.cos((float) i * 2.0f * Math.PI / 5.0f) * R;
       notes.add(new Note("", noteProgram, x, 0.0f, z));
-    }
+    }*/
 
     checkGLError("onSurfaceCreated");
   }
@@ -286,13 +289,17 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
    */
   @Override
   public void onNewFrame(HeadTransform headTransform) {
+    //add all the new notes the next frame
+    while (!newNotes.isEmpty()) {
+      float[] newNote = newNotes.poll();
+      notes.add(new Note("", noteProgram, newNote[0], newNote[1], newNote[2]));
+    }
     // Build the camera matrix and apply it to the ModelView.
     Matrix.setLookAtM(camera, 0, 0.0f, 0.0f, CAMERA_Z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
     headTransform.getHeadView(headView, 0);
 
-    // Update the 3d audio engine with the most recent head rotation.
-    headTransform.getEulerAngles(headRotation, 0);
+    headTransform.getForwardVector(headForward, 0);
 
     checkGLError("onReadyToDraw");
   }
@@ -319,13 +326,20 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
 
     float[] perspective = eye.getPerspective(Z_NEAR, Z_FAR);
 
+    checkGLError("Before drawing notes");
+    int i = 0;
     for (Note o : notes) {
       o.drawNote(view, perspective, lightPosInEyeSpace);
+      i++;
+      checkGLError("drew a note " + i);
     }
+    checkGLError("After drawing notes");
 
     // Set modelView for the floor, so we draw floor in the correct location
     Matrix.multiplyMM(modelView, 0, view, 0, modelFloor, 0);
+    checkGLError("Multiplied once");
     Matrix.multiplyMM(modelViewProjection, 0, perspective, 0, modelView, 0);
+    checkGLError("Before drawing floor");
     drawFloor();
   }
 
@@ -362,6 +376,11 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
    */
   @Override
   public void onCardboardTrigger() {
-
+    float newNote[] = new float[3];
+    float distance = 3.5f;
+    newNote[0] = headForward[0] * distance;
+    newNote[1] = headForward[1] * distance;
+    newNote[2] = headForward[2] * distance;
+    newNotes.add(newNote);
   }
 }
