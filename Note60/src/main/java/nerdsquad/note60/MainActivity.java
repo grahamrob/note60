@@ -58,10 +58,6 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
   private FloatBuffer floorColors;
   private FloatBuffer floorNormals;
 
-  private FloatBuffer noteVertices;
-  private FloatBuffer noteColors;
-  private FloatBuffer noteNormals;
-
   private int floorProgram;
   private int noteProgram;
 
@@ -73,26 +69,19 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
   private int floorModelViewProjectionParam;
   private int floorLightPosParam;
 
-  private int notePositionParam;
-  private int noteNormalParam;
-  private int noteColorParam;
-  private int noteModelParam;
-  private int noteModelViewParam;
-  private int noteModelViewProjectionParam;
-  private int noteLightPosParam;
-
   private float[] camera;
   private float[] view;
   private float[] headView;
   private float[] modelViewProjection;
   private float[] modelView;
   private float[] modelFloor;
-  private float[] modelNote;
 
-  private float[] modelPosition;
   private float[] headRotation;
 
   private float floorDepth = 20f;
+
+  private Note noteObj;
+  private Note noteObj2;
 
   //private Vibrator vibrator;
   //private CardboardOverlayView overlayView;
@@ -162,8 +151,6 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
     modelFloor = new float[16];
     headRotation = new float[4];
     headView = new float[16];
-    modelNote = new float[16];
-    modelPosition = new float[] {0.0f, 0.0f, -7.0f / 2.0f};
     //vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
     //overlayView = (CardboardOverlayView) findViewById(R.id.overlay);
@@ -203,24 +190,6 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
     Log.i(TAG, "onSurfaceCreated");
     GLES20.glClearColor(0.1f, 0.1f, 0.1f, 0.5f); // Dark background so text shows up well.
 
-    ByteBuffer bbNoteVertices = ByteBuffer.allocateDirect(WorldLayoutData.NOTE_COORDS.length * 4);
-    bbNoteVertices.order(ByteOrder.nativeOrder());
-    noteVertices = bbNoteVertices.asFloatBuffer();
-    noteVertices.put(WorldLayoutData.NOTE_COORDS);
-    noteVertices.position(0);
-
-    ByteBuffer bbNoteColors = ByteBuffer.allocateDirect(WorldLayoutData.NOTE_COLORS.length * 4);
-    bbNoteColors.order(ByteOrder.nativeOrder());
-    noteColors = bbNoteColors.asFloatBuffer();
-    noteColors.put(WorldLayoutData.NOTE_COLORS);
-    noteColors.position(0);
-
-    ByteBuffer bbNoteNormals = ByteBuffer.allocateDirect(WorldLayoutData.NOTE_NORMALS.length * 4);
-    bbNoteNormals.order(ByteOrder.nativeOrder());
-    noteNormals = bbNoteNormals.asFloatBuffer();
-    noteNormals.put(WorldLayoutData.NOTE_NORMALS);
-    noteNormals.position(0);
-
     // make a floor
     ByteBuffer bbFloorVertices = ByteBuffer.allocateDirect(WorldLayoutData.FLOOR_COORDS.length * 4);
     bbFloorVertices.order(ByteOrder.nativeOrder());
@@ -250,25 +219,6 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
     GLES20.glLinkProgram(noteProgram);
     GLES20.glUseProgram(noteProgram);
 
-    checkGLError("Note program");
-
-
-    notePositionParam = GLES20.glGetAttribLocation(noteProgram, "a_Position");
-    noteNormalParam = GLES20.glGetAttribLocation(noteProgram, "a_Normal");
-    noteColorParam = GLES20.glGetAttribLocation(noteProgram, "a_Color");
-
-    noteModelParam = GLES20.glGetUniformLocation(noteProgram, "u_Model");
-    noteModelViewParam = GLES20.glGetUniformLocation(noteProgram, "u_MVMatrix");
-    noteModelViewProjectionParam = GLES20.glGetUniformLocation(noteProgram, "u_MVP");
-    noteLightPosParam = GLES20.glGetUniformLocation(noteProgram, "u_LightPos");
-
-
-    GLES20.glEnableVertexAttribArray(notePositionParam);
-    GLES20.glEnableVertexAttribArray(noteNormalParam);
-    GLES20.glEnableVertexAttribArray(noteColorParam);
-
-    checkGLError("Note program params");
-
     floorProgram = GLES20.glCreateProgram();
     GLES20.glAttachShader(floorProgram, vertexShader);
     GLES20.glAttachShader(floorProgram, gridShader);
@@ -295,9 +245,8 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
     Matrix.setIdentityM(modelFloor, 0);
     Matrix.translateM(modelFloor, 0, 0, -floorDepth, 0); // Floor appears below user.
 
-    Matrix.setIdentityM(modelNote, 0);
-    //Matrix.translateM(modelNote, 0, modelPosition[0], modelPosition[1], modelPosition[2]);
-    Matrix.translateM(modelNote, 0, 0, 0, -3.5f);
+    noteObj = new Note("", noteProgram, 0.0f, 2.1f, -3.7f);
+    noteObj2 = new Note("", noteProgram, 3.0f, 0.5f, 0.0f);
 
     checkGLError("onSurfaceCreated");
   }
@@ -363,9 +312,8 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
 
     float[] perspective = eye.getPerspective(Z_NEAR, Z_FAR);
 
-    Matrix.multiplyMM(modelView, 0, view, 0, modelNote, 0);
-    Matrix.multiplyMM(modelViewProjection, 0, perspective, 0, modelView, 0);
-    drawNote();
+    noteObj.drawNote(view, perspective, lightPosInEyeSpace);
+    noteObj2.drawNote(view, perspective, lightPosInEyeSpace);
 
     // Set modelView for the floor, so we draw floor in the correct location
     Matrix.multiplyMM(modelView, 0, view, 0, modelFloor, 0);
@@ -375,32 +323,6 @@ public class MainActivity extends CardboardActivity implements CardboardView.Ste
 
   @Override
   public void onFinishFrame(Viewport viewport) {}
-
-  public void drawNote() {
-    GLES20.glUseProgram(noteProgram);
-
-    GLES20.glUniform3fv(noteLightPosParam, 1, lightPosInEyeSpace, 0);
-
-    // Set the Model in the shader, used to calculate lighting
-    GLES20.glUniformMatrix4fv(noteModelParam, 1, false, modelNote, 0);
-
-    // Set the ModelView in the shader, used to calculate lighting
-    GLES20.glUniformMatrix4fv(noteModelViewParam, 1, false, modelView, 0);
-
-    // Set the position of the note
-    GLES20.glVertexAttribPointer(
-            notePositionParam, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, 0, noteVertices);
-
-    // Set the ModelViewProjection matrix in the shader.
-    GLES20.glUniformMatrix4fv(noteModelViewProjectionParam, 1, false, modelViewProjection, 0);
-
-    // Set the normal positions of the note, again for shading
-    GLES20.glVertexAttribPointer(noteNormalParam, 3, GLES20.GL_FLOAT, false, 0, noteNormals);
-    GLES20.glVertexAttribPointer(noteColorParam, 4, GLES20.GL_FLOAT, false, 0, noteColors);
-
-    GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6);
-    checkGLError("Drawing note");
-  }
 
   /**
    * Draw the floor.

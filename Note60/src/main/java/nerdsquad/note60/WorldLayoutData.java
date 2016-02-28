@@ -21,33 +21,6 @@ package nerdsquad.note60;
  */
 public final class WorldLayoutData {
 
-    public static final float[] NOTE_COORDS = new float[] {
-            -1.0f, 1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f,
-            -1.0f, -1.0f, 0.0f,
-            -1.0f, 1.0f, 0.0f,
-            1.0f, 1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f,
-    };
-
-    public static final float[] NOTE_NORMALS = new float[] {
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,
-    };
-
-    public static final float[] NOTE_COLORS = new float[] {
-            1.0f, 1.0f, 0.0f, 1.0f,
-            1.0f, 1.0f, 0.0f, 1.0f,
-            1.0f, 1.0f, 0.0f, 1.0f,
-            1.0f, 1.0f, 0.0f, 1.0f,
-            1.0f, 1.0f, 0.0f, 1.0f,
-            1.0f, 1.0f, 0.0f, 1.0f,
-    };
-
     public static final float[] FLOOR_COORDS = new float[] {
             200f, 0, -200f,
             -200f, 0, -200f,
