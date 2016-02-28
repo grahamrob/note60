@@ -28,11 +28,11 @@ public class Note {
 
     private static final float[] NOTE_COORDS = new float[] {
             -1.0f, 1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f,
             -1.0f, -1.0f, 0.0f,
-            -1.0f, 1.0f, 0.0f,
-            1.0f, 1.0f, 0.0f,
             1.0f, -1.0f, 0.0f,
+            -1.0f, 1.0f, 0.0f,
+            1.0f, -1.0f, 0.0f,
+            1.0f, 1.0f, 0.0f,
     };
 
     private static final float[] NOTE_NORMALS = new float[] {
@@ -94,10 +94,17 @@ public class Note {
         modelNote = new float[16];
         Matrix.setIdentityM(modelNote, 0);
         Matrix.translateM(modelNote, 0, x, y, z);
+        float sign = 1.0f;
+        if (x > 0.0)
+            sign *= -1.0f;
+        if (z > 0.0)
+            sign *= -1.0f;
 
-        //need to rotate the note to face the origin (still figuring this out)
-        //Matrix.rotateM(modelNote, 0, (float) Math.toDegrees(Math.asin(x/z)), 0f, 1.0f, 0f);
-        //Matrix.rotateM(modelNote, 0, 90.0f, 0.0f, 1.0f, 0.0f);
+        //need to rotate the note to face the origin
+        if (z < 0.0)
+            Matrix.rotateM(modelNote, 0, sign * (float) Math.toDegrees(Math.atan(Math.abs(x/z))), 0f, 1.0f, 0f);
+        else
+            Matrix.rotateM(modelNote, 0, sign * (float) (Math.toDegrees(Math.atan(Math.abs(x/z))) + 180.0f), 0f, 1.0f, 0f);
     }
 
     public void drawNote(float[] view, float[] perspective, float[] lightPosInEyeSpace) {
